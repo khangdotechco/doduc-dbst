@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Độ đục nước — ĐBST</title>
+<meta name="theme-color" content="#1F3864">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --navy: #1F3864;
+    --navy2: #2A4A85;
+    --bg: #eef2f8;
+    --ok: #2E8B57;
+    --err: #C0392B;
+    --warn: #B8860B;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg); color: #222; min-height: 100vh;
+  }
+  header {
+    background: var(--navy); color: #fff; padding: 14px 16px;
+    font-size: 17px; font-weight: 700; letter-spacing: .3px;
+  }
+  header small { display:block; font-weight:400; font-size:12px; opacity:.85; margin-top:2px; }
+  main { padding: 14px; max-width: 520px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px;
+  }
+  label { display:block; font-size:13px; font-weight:600; color:#374151; margin: 12px 0 4px; }
+  label .req { color: var(--err); }
+  select, input[type=date], input[type=time], input[type=text], input[type=number] {
+    width:100%; font-size:16px; padding:10px 12px; border:1px solid #cbd5e1;
+    border-radius:8px; background:#fff; color:#111;
+  }
+  select:focus, input:focus { outline:2px solid var(--navy2); border-color:var(--navy2); }
+  .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  input[type=file] { width:100%; font-size:14px; }
+  .hint { font-size:12px; color:#6b7280; margin-top:3px; }
+  button {
+    width:100%; margin-top:16px; padding:14px; font-size:17px; font-weight:700;
+    color:#fff; background:var(--navy); border:none; border-radius:10px; cursor:pointer;
+  }
+  button:disabled { background:#9aa5b1; cursor:not-allowed; }
+  #status { margin-top:12px; padding:12px; border-radius:8px; font-size:14px; white-space:pre-wrap; display:none; }
+  #status.ok { display:block; background:#e6f4ec; color:var(--ok); }
+  #status.err { display:block; background:#fdecea; color:var(--err); }
+  #status.info { display:block; background:#eef2f8; color:#374151; }
+</style>
+</head>
+<body>
+<header>
+  ĐỘ ĐỤC NƯỚC — ĐÔNG BẮC SÔNG TIỀN
+  <small>Nhập kết quả đo · gửi về trung tâm</small>
+</header>
+<main>
+  <!-- ============ CẤU HÌNH (anh Khang điền sau khi deploy Apps Script) ============ -->
+  <script>
+    // KHONG de token bot trong trang nay nua (PHA 3b). Trang chi goi Apps Script.
+    // Anh Khang deploy apps_script.gs xong thi dan URL /exec va khoa chung vao day:
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygHddO9ggxQ9HxTMKMeqBB42TTC1HFTt4anD-MN_EBmBzAyiylwkYXIuempxcfMYZCkQ/exec';
+    const SHARED_KEY = 'doduc-dbst.2026';
+  </script>
+  <!-- ========================================================================== -->
+
+  <div class="card">
+    <label for="plant">Nhà máy <span class="req">*</span></label>
+    <select id="plant">
+      <option value="">— Chọn trạm —</option>
+      <option value="SXD">SXD(CD)</option>
+      <option value="PhuongTra">Phuong Tra(CD)</option>
+      <option value="DB">Đông Bình(DB)</option>
+      <option value="DW">Dowaco(DW)</option>
+      <option value="HCL">Mỹ Thọ(HCL)</option>
+      <option value="MA">Mỹ An(MA)</option>
+      <option value="MH">Mỹ Hiệp(MH)</option>
+      <option value="TL">Tân Long(TL)</option>
+      <option value="TN">Tân Nghĩa(TN)</option>
+      <option value="TQT">Trần Quốc Toản(TQT)</option>
+      <option value="TXgieng">Trường Xuân-giếng(TX)</option>
+      <option value="TXmat">Trường Xuân-mặt(TX)</option>
+    </select>
+
+    <div class="row2">
+      <div>
+        <label for="d">Ngày đo <span class="req">*</span></label>
+        <input type="date" id="d">
+      </div>
+      <div>
+        <label for="t">Giờ đo <span class="req">*</span></label>
+        <input type="time" id="t">
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label for="tho">Độ đục thô (NTU)</label>
+        <input type="number" id="tho" inputmode="decimal" step="any" min="0" placeholder="—">
+      </div>
+      <div>
+        <label for="lang">Sau lắng (NTU)</label>
+        <input type="number" id="lang" inputmode="decimal" step="any" min="0" placeholder="—">
+        <div class="hint">Trạm nước ngầm bỏ trống</div>
+      </div>
+      <div>
+        <label for="mang">Ra mạng (NTU) <span class="req">*</span></label>
+        <input type="number" id="mang" inputmode="decimal" step="any" min="0" placeholder="0.0">
+      </div>
+    </div>
+
+    <label for="photo">Ảnh máy đo <span class="req">*</span></label>
+    <input type="file" id="photo" accept="image/*" capture="environment">
+
+    <label for="by">Người đo</label>
+    <input type="text" id="by" placeholder="Tên người đo" autocomplete="name">
+
+    <button id="send">📤 GỬI</button>
+    <div id="status"></div>
+  </div>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const plantSel = $('plant'), dInp = $('d'), tInp = $('t');
+  const thoInp = $('tho'), langInp = $('lang'), mangInp = $('mang');
+  const photoInp = $('photo'), byInp = $('by'), btn = $('send'), status = $('status');
+
+  const PLANT_NAMES = {
+    SXD: 'SXD(CD)', PhuongTra: 'Phuong Tra(CD)', DB: 'Đông Bình(DB)',
+    DW: 'Dowaco(DW)', HCL: 'Mỹ Thọ(HCL)', MA: 'Mỹ An(MA)', MH: 'Mỹ Hiệp(MH)',
+    TL: 'Tân Long(TL)', TN: 'Tân Nghĩa(TN)', TQT: 'Trần Quốc Toản(TQT)',
+    TXgieng: 'Trường Xuân-giếng(TX)', TXmat: 'Trường Xuân-mặt(TX)'
+  };
+
+  function nowLocal() {
+    const n = new Date();
+    const p = x => String(x).padStart(2, '0');
+    dInp.value = dInp.value || `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
+    tInp.value = tInp.value || `${p(n.getHours())}:${p(n.getMinutes())}`;
+  }
+  byInp.value = localStorage.getItem('wq_by') || '';
+  byInp.addEventListener('change', () => localStorage.setItem('wq_by', byInp.value.trim()));
+  nowLocal();
+
+  function show(msg, kind) {
+    status.className = kind;
+    status.textContent = msg;
+  }
+  function clearStatus() { status.className = ''; status.textContent = ''; status.style.display = 'none'; }
+
+  function num(v) {
+    // nhap "3,2" hoac "3.2" deu ra 3.2 (dau phay VN = thap phan)
+    if (v === '') return null;
+    const n = parseFloat(String(v).replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function fmtNum(n) {
+    // hien thi kieu VN (dau phay thap phan); bot Python doc "3,2" thanh 3.2
+    if (n === null) return '';
+    return String(n).replace('.', ',');
+  }
+
+  // ---- nen anh truoc khi gui (anh may do 2-5MB -> ~200-500KB, van doc duoc so) ----
+  function readFileAsDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+  function loadImage(src) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error('Không đọc được ảnh.'));
+      img.src = src;
+    });
+  }
+  async function compressImage(file) {
+    const img = await loadImage(await readFileAsDataURL(file));
+    const maxEdge = 1600;
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    if (Math.max(w, h) > maxEdge) {
+      const k = maxEdge / Math.max(w, h);
+      w = Math.round(w * k); h = Math.round(h * k);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
+    const base64 = (await readFileAsDataURL(blob)).split(',')[1];   // bo phan data:image/...
+    return {
+      base64: base64,
+      mime: 'image/jpeg',
+      name: (file.name || 'anh.jpg').replace(/\.[^.]+$/, '') + '.jpg'
+    };
+  }
+
+  btn.addEventListener('click', async () => {
+    clearStatus();
+
+    if (!APPS_SCRIPT_URL || !SHARED_KEY) {
+      show('❌ Trang chưa cấu hình APPS_SCRIPT_URL / SHARED_KEY.\nMở file index.html và điền 2 ô ở đầu.', 'err');
+      return;
+    }
+    const code = plantSel.value;
+    if (!code) { show('❌ Vui lòng chọn nhà máy.', 'err'); return; }
+    if (!dInp.value || !tInp.value) { show('❌ Vui lòng điền ngày và giờ đo.', 'err'); return; }
+
+    const tho = num(thoInp.value.trim());
+    const lang = num(langInp.value.trim());
+    const mang = num(mangInp.value.trim());
+    if (mang === null) { show('❌ "Độ đục ra mạng" bắt buộc phải nhập.', 'err'); mangInp.focus(); return; }
+    if (tho !== null && tho < 0 || lang !== null && lang < 0 || mang < 0) {
+      show('❌ Số đo không được âm.', 'err'); return;
+    }
+    if (photoInp.files.length === 0) {
+      show('❌ Vui lòng chụp ảnh máy đo trước khi gửi.\n(Bot chỉ ghi những lần đo có ảnh.)', 'err');
+      return;
+    }
+
+    // kiem tra logic: tho >= lang >= mang (neu co) — nguoc thi hoi lai
+    if (tho !== null && lang !== null && tho < lang) {
+      if (!confirm('⚠️ Độ đục thô nhỏ hơn sau lắng.\nSố có đúng không?')) return;
+    }
+    if (lang !== null && mang !== null && lang < mang) {
+      if (!confirm('⚠️ Độ đục sau lắng nhỏ hơn ra mạng.\nSố có đúng không?')) return;
+    }
+
+    const by = byInp.value.trim() || '';
+    // 1 dong may-doc + vai dong nguoi-doc cho dep nhom
+    const machine = ['WQ', code, dInp.value, tInp.value,
+                     fmtNum(tho), fmtNum(lang), fmtNum(mang), by].join('|');
+    const human = [
+      `📊 Độ đục ${PLANT_NAMES[code]} ${dInp.value.split('-').reverse().join('.')} ${tInp.value}`,
+      `   thô ${tho === null ? '-' : fmtNum(tho)} / lắng ${lang === null ? '-' : fmtNum(lang)} / ra mạng ${fmtNum(mang)} NTU` +
+      (by ? ` (— ${by})` : '')
+    ].join('\n');
+
+    btn.disabled = true;
+    show('⏳ Đang nén ảnh và gửi…', 'info');
+    try {
+      const img = await compressImage(photoInp.files[0]);
+      const payload = {
+        key: SHARED_KEY,
+        chuoi_wq: machine,        // dong may-doc dung dinh dang WQ|...
+        caption_hien: human,      // dong nguoi-doc cho nhom Telegram
+        nguoi_gui: by,
+        photo_base64: img.base64,
+        photo_mime: img.mime,
+        photo_name: img.name
+      };
+      // Content-Type text/plain de tranh CORS preflight (Apps Script khong tra loi OPTIONS)
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (err) { data = { ok: false, error: text }; }
+      if (data.ok) {
+        show('✅ Đã gửi thành công.', 'ok');
+        thoInp.value = ''; langInp.value = ''; mangInp.value = '';
+        photoInp.value = '';
+      } else {
+        show('❌ Gửi lỗi: ' + (data.error || JSON.stringify(data)), 'err');
+      }
+    } catch (e) {
+      show('❌ Không gửi được (mạng/Apps Script): ' + e.message +
+           '\nThử lại hoặc báo kỹ thuật viên.', 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
