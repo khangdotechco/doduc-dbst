@@ -116,8 +116,13 @@
     <label for="photo">Ảnh máy đo <span class="req">*</span></label>
     <input type="file" id="photo" accept="image/*" capture="environment">
 
-    <label for="by">Người đo</label>
-    <input type="text" id="by" placeholder="Tên người đo" autocomplete="name">
+    <label for="bySelect">Người đo</label>
+    <select id="bySelect">
+      <option value="">— Chọn tên —</option>
+      <option value="__other__">Khác… (nhập tên)</option>
+    </select>
+    <input type="text" id="byOther" placeholder="Nhập tên người đo" autocomplete="name"
+           style="display:none; margin-top:8px;">
 
     <button id="send">📤 GỬI</button>
     <div id="status"></div>
@@ -128,7 +133,7 @@
   const $ = id => document.getElementById(id);
   const plantSel = $('plant'), dInp = $('d'), tInp = $('t');
   const thoInp = $('tho'), langInp = $('lang'), mangInp = $('mang');
-  const photoInp = $('photo'), byInp = $('by'), btn = $('send'), status = $('status');
+  const photoInp = $('photo'), bySelect = $('bySelect'), byOther = $('byOther'), btn = $('send'), status = $('status');
 
   const PLANT_NAMES = {
     SXD: 'SXD(CD)', PhuongTra: 'Phuong Tra(CD)', DB: 'Đông Bình(DB)',
@@ -136,6 +141,67 @@
     TL: 'Tân Long(TL)', TN: 'Tân Nghĩa(TN)', TQT: 'Trần Quốc Toản(TQT)',
     TXgieng: 'Trường Xuân-giếng(TX)', TXmat: 'Trường Xuân-mặt(TX)'
   };
+  const PLANT_STAFF = {
+  "SXD": [
+    "Nguyễn Lê Sĩ",
+    "Phạm Hồng Lĩnh",
+    "Đặng Công Khanh"
+  ],
+  "PhuongTra": [
+    "Nguyễn Lê Sĩ",
+    "Phạm Hồng Lĩnh",
+    "Đặng Công Khanh"
+  ],
+  "TL": [
+    "Nguyễn Lê Sĩ",
+    "Phạm Hồng Lĩnh",
+    "Đặng Công Khanh"
+  ],
+  "DB": [
+    "Cao Thanh Dững",
+    "Nguyễn Thành Nghĩa",
+    "Nguyễn Đăng Khoa",
+    "Trương Minh Ngọc",
+    "Trần Minh Lý"
+  ],
+  "DW": [
+    "Nguyễn Đăng Khoa",
+    "Phan Huy Tùng",
+    "Trương Minh Ngọc",
+    "Trần Minh Lý"
+  ],
+  "HCL": [
+    "Lê Thành Công",
+    "Nguyễn Anh Tuấn",
+    "Ngô Trọng Ân"
+  ],
+  "MA": [
+    "Lưu Văn Gò",
+    "Ngô Võ Phước Tài",
+    "Trần Văn Công"
+  ],
+  "MH": [
+    "Phạm Minh Nhựt",
+    "Trần Hửu Vinh"
+  ],
+  "TN": [
+    "Hồ Lê Hải Trường",
+    "Lê Văn Mười"
+  ],
+  "TQT": [
+    "Nguyễn Hữu Nghĩa",
+    "Võ Minh Nhựt",
+    "Vũ Đức Cương"
+  ],
+  "TXgieng": [
+    "Nguyễn Thanh Vũ",
+    "Võ Hồng Sơn"
+  ],
+  "TXmat": [
+    "Nguyễn Thanh Vũ",
+    "Võ Hồng Sơn"
+  ]
+};
 
   function nowLocal() {
     const n = new Date();
@@ -143,8 +209,35 @@
     dInp.value = dInp.value || `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
     tInp.value = tInp.value || `${p(n.getHours())}:${p(n.getMinutes())}`;
   }
-  byInp.value = localStorage.getItem('wq_by') || '';
-  byInp.addEventListener('change', () => localStorage.setItem('wq_by', byInp.value.trim()));
+  function populateBySelect(code) {
+    const names = PLANT_STAFF[code] || [];
+    const lastPick = localStorage.getItem('wq_by_' + code) || '';
+    bySelect.innerHTML = '';
+    const optEmpty = document.createElement('option');
+    optEmpty.value = ''; optEmpty.textContent = '— Chọn tên —';
+    bySelect.appendChild(optEmpty);
+    names.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      bySelect.appendChild(o);
+    });
+    const optOther = document.createElement('option');
+    optOther.value = '__other__'; optOther.textContent = 'Khác… (nhập tên)';
+    bySelect.appendChild(optOther);
+    bySelect.value = names.includes(lastPick) ? lastPick : '';
+    byOther.style.display = 'none';
+    byOther.value = localStorage.getItem('wq_by_other_last') || '';
+  }
+  plantSel.addEventListener('change', () => populateBySelect(plantSel.value));
+  bySelect.addEventListener('change', () => {
+    if (bySelect.value === '__other__') {
+      byOther.style.display = 'block';
+      byOther.focus();
+    } else {
+      byOther.style.display = 'none';
+    }
+  });
+  populateBySelect(plantSel.value);
   nowLocal();
 
   function show(msg, kind) {
@@ -235,7 +328,12 @@
       if (!confirm('⚠️ Độ đục sau lắng nhỏ hơn ra mạng.\nSố có đúng không?')) return;
     }
 
-    const by = byInp.value.trim() || '';
+    const by = bySelect.value === '__other__'
+      ? byOther.value.trim()
+      : (bySelect.value || '');
+    if (bySelect.value === '__other__' && !by) {
+      show('❌ Vui lòng nhập tên người đo (mục "Khác").', 'err'); byOther.focus(); return;
+    }
     // 1 dong may-doc + vai dong nguoi-doc cho dep nhom
     const machine = ['WQ', code, dInp.value, tInp.value,
                      fmtNum(tho), fmtNum(lang), fmtNum(mang), by].join('|');
@@ -269,6 +367,11 @@
       try { data = JSON.parse(text); } catch (err) { data = { ok: false, error: text }; }
       if (data.ok) {
         show('✅ Đã gửi thành công.', 'ok');
+        if (bySelect.value === '__other__') {
+          localStorage.setItem('wq_by_other_last', by);
+        } else if (bySelect.value) {
+          localStorage.setItem('wq_by_' + code, bySelect.value);
+        }
         thoInp.value = ''; langInp.value = ''; mangInp.value = '';
         photoInp.value = '';
       } else {
