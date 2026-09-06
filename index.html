@@ -51,6 +51,17 @@
   #status.ok { display:block; background:#e6f4ec; color:var(--ok); }
   #status.err { display:block; background:#fdecea; color:var(--err); }
   #status.info { display:block; background:#eef2f8; color:#374151; }
+  .field { margin-top:12px; }
+  .sectionTitle { margin-top:16px; font-size:14px; font-weight:700; color:var(--navy); }
+  .basinRow { border-top:1px dashed #d7dee8; padding:10px 0 4px; margin-top:8px; }
+  .basinRow label { margin:0 0 4px; }
+  .basinRow input[type=text] { margin-bottom:6px; }
+  .photoHint { display:block; font-size:12px; color:#6b7280; margin-top:4px; }
+  .warn { display:block; background:#fff8e1; border:1px solid #f0d060; color:#8a6d00; padding:8px 10px; border-radius:8px; font-size:13px; margin-top:8px; white-space:pre-wrap; }
+  button.secondary { background:#eef2f8; color:var(--navy); border:1px solid #cbd5e1; }
+  table.history { width:100%; border-collapse:collapse; font-size:13px; }
+  table.history th, table.history td { border:1px solid #d7dee8; padding:6px 8px; text-align:left; white-space:nowrap; }
+  table.history th { background:#eef2f8; color:#374151; }
 </style>
 </head>
 <body>
@@ -72,8 +83,8 @@
     <label for="plant">Nhà máy <span class="req">*</span></label>
     <select id="plant">
       <option value="">— Chọn trạm —</option>
-      <option value="SXD">SXD(CD)</option>
-      <option value="PhuongTra">Phuong Tra(CD)</option>
+      <!-- CHI 9 NHA MAY NUOC MAT. Nuoc ngam (SXD, Phuong Tra, TX-gieng) KHONG do do duc
+           (Khang chot 06/09, C5+C23) => bo khoi PWA do duc va bao cao do duc. -->
       <option value="DB">Đông Bình(DB)</option>
       <option value="DW">Dowaco(DW)</option>
       <option value="HCL">Mỹ Thọ(HCL)</option>
@@ -82,7 +93,6 @@
       <option value="TL">Tân Long(TL)</option>
       <option value="TN">Tân Nghĩa(TN)</option>
       <option value="TQT">Trần Quốc Toản(TQT)</option>
-      <option value="TXgieng">Trường Xuân-giếng(TX)</option>
       <option value="TXmat">Trường Xuân-mặt(TX)</option>
     </select>
 
@@ -97,24 +107,29 @@
       </div>
     </div>
 
-    <div class="row3">
-      <div>
-        <label for="tho">Độ đục thô (NTU)</label>
-        <input type="text" id="tho" inputmode="decimal" placeholder="—">
-      </div>
-      <div>
-        <label for="lang">Sau lắng (NTU)</label>
-        <input type="text" id="lang" inputmode="decimal" placeholder="—">
-        <div class="hint">Trạm nước ngầm bỏ trống</div>
-      </div>
-      <div>
-        <label for="mang">Ra mạng (NTU) <span class="req">*</span></label>
-        <input type="text" id="mang" inputmode="decimal" placeholder="0.0">
-      </div>
+    <div class="field">
+      <label for="tho">Độ đục thô (NTU) <span class="req">*</span></label>
+      <input type="text" id="tho" inputmode="decimal" placeholder="0.0">
+    </div>
+    <div class="field">
+      <label for="photoTho">Ảnh độ đục thô <span class="req">*</span></label>
+      <input type="file" id="photoTho" accept="image/*">
     </div>
 
-    <label for="photo">Ảnh máy đo <span class="req">*</span></label>
-    <input type="file" id="photo" accept="image/*">
+    <div id="langBlock" style="display:none;">
+      <div class="sectionTitle">Độ đục sau lắng (NTU)</div>
+      <div class="hint">Có thể nhập thiếu bể (C20). Ảnh bắt buộc cho bể có số CAO NHẤT trong các bể đã nhập.</div>
+      <div id="langFields"></div>
+    </div>
+
+    <div class="field">
+      <label for="mang">Độ đục ra mạng (NTU) <span class="req">*</span></label>
+      <input type="text" id="mang" inputmode="decimal" placeholder="0.0">
+    </div>
+    <div class="field">
+      <label for="photoMang">Ảnh độ đục ra mạng <span class="req">*</span></label>
+      <input type="file" id="photoMang" accept="image/*">
+    </div>
 
     <label for="bySelect">Người đo</label>
     <select id="bySelect">
@@ -127,13 +142,31 @@
     <button id="send">📤 GỬI</button>
     <div id="status"></div>
   </div>
+
+  <div class="card">
+    <button id="historyBtn" class="secondary">🕘 Xem 7 ngày gần đây</button>
+    <div id="historySummary" class="hint" style="margin-top:8px;"></div>
+    <div id="historyBox" style="display:none; margin-top:8px; overflow-x:auto;"></div>
+  </div>
 </main>
 
 <script>
   const $ = id => document.getElementById(id);
   const plantSel = $('plant'), dInp = $('d'), tInp = $('t');
-  const thoInp = $('tho'), langInp = $('lang'), mangInp = $('mang');
-  const photoInp = $('photo'), bySelect = $('bySelect'), byOther = $('byOther'), btn = $('send'), status = $('status');
+  const thoInp = $('tho'), mangInp = $('mang');
+  const photoThoInp = $('photoTho'), photoMangInp = $('photoMang');
+  const langBlock = $('langBlock'), langFields = $('langFields');
+  const bySelect = $('bySelect'), byOther = $('byOther'), btn = $('send'), status = $('status');
+  const historyBtn = $('historyBtn'), historySummary = $('historySummary'), historyBox = $('historyBox');
+  let langInputs = [];   // [{be, numEl, photoEl}] — khai báo sớm để tránh lỗi TDZ
+
+  // Số bể lắng từng trạm — ⚠️ PHẢI KHỚP PLANT_BASINS trong pipeline/water_quality.py (BƯỚC 1).
+  const PLANT_BASINS = {
+    SXD: 0, PhuongTra: 0, TXgieng: 0,
+    DB: 6, DW: 2, HCL: 6, MA: 3, MH: 2, TL: 1, TN: 1, TQT: 1, TXmat: 1
+  };
+  // Ngưỡng NHÚNG TĨNH — CHỈ để nhắc mềm (C22 lớp 1). Nguồn ngưỡng THẬT = sheet 'dinh muc quy dinh'.
+  const THO_NGUONG = 100, LANG_NGUONG_DUOI = 10, LANG_NGUONG_TREN = 15;
 
   const PLANT_NAMES = {
     SXD: 'SXD(CD)', PhuongTra: 'Phuong Tra(CD)', DB: 'Đông Bình(DB)',
@@ -228,7 +261,10 @@
     byOther.style.display = 'none';
     byOther.value = localStorage.getItem('wq_by_other_last') || '';
   }
-  plantSel.addEventListener('change', () => populateBySelect(plantSel.value));
+  plantSel.addEventListener('change', () => {
+    populateBySelect(plantSel.value);
+    buildLangFields(plantSel.value);
+  });
   bySelect.addEventListener('change', () => {
     if (bySelect.value === '__other__') {
       byOther.style.display = 'block';
@@ -239,10 +275,42 @@
   });
   populateBySelect(plantSel.value);
   nowLocal();
+  buildLangFields(plantSel.value);
+
+  // ---- form sau lắng động theo trạm (BƯỚC 2) ----
+  function buildLangFields(code) {
+    const n = PLANT_BASINS[code] || 0;
+    langInputs = [];
+    langFields.innerHTML = '';
+    if (n <= 0) { langBlock.style.display = 'none'; return; }
+    langBlock.style.display = 'block';
+    for (let be = 1; be <= n; be++) {
+      const row = document.createElement('div');
+      row.className = 'basinRow';
+      const lbl = document.createElement('label');
+      lbl.textContent = 'Sau lắng — bể ' + be + ' (NTU)';
+      const numEl = document.createElement('input');
+      numEl.type = 'text'; numEl.inputMode = 'decimal'; numEl.placeholder = '—';
+      numEl.dataset.be = String(be);
+      const phLbl = document.createElement('label');
+      phLbl.className = 'photoHint';
+      phLbl.textContent = 'Ảnh bể ' + be;
+      const phEl = document.createElement('input');
+      phEl.type = 'file'; phEl.accept = 'image/*';
+      phEl.dataset.be = String(be);
+      row.appendChild(lbl);
+      row.appendChild(numEl);
+      row.appendChild(phLbl);
+      row.appendChild(phEl);
+      langFields.appendChild(row);
+      langInputs.push({ be: be, numEl: numEl, photoEl: phEl });
+    }
+  }
 
   function show(msg, kind) {
     status.className = kind;
     status.textContent = msg;
+    status.style.display = 'block';
   }
   function clearStatus() { status.className = ''; status.textContent = ''; status.style.display = 'none'; }
 
@@ -309,23 +377,56 @@
     if (!dInp.value || !tInp.value) { show('❌ Vui lòng điền ngày và giờ đo.', 'err'); return; }
 
     const tho = num(thoInp.value.trim());
-    const lang = num(langInp.value.trim());
     const mang = num(mangInp.value.trim());
+    if (tho === null) { show('❌ "Độ đục thô" bắt buộc phải nhập.', 'err'); thoInp.focus(); return; }
     if (mang === null) { show('❌ "Độ đục ra mạng" bắt buộc phải nhập.', 'err'); mangInp.focus(); return; }
-    if (tho !== null && tho < 0 || lang !== null && lang < 0 || mang < 0) {
-      show('❌ Số đo không được âm.', 'err'); return;
-    }
-    if (photoInp.files.length === 0) {
-      show('❌ Vui lòng chụp ảnh máy đo trước khi gửi.\n(Bot chỉ ghi những lần đo có ảnh.)', 'err');
-      return;
+    if (tho < 0 || mang < 0) { show('❌ Số đo không được âm.', 'err'); return; }
+
+    // sau lắng: so được để trống (C20); gom các bể đã nhập
+    const langVals = [];   // [{be, val}]
+    for (const it of langInputs) {
+      const v = num(it.numEl.value.trim());
+      if (v !== null) {
+        if (v < 0) { show('❌ Số đo không được âm.', 'err'); it.numEl.focus(); return; }
+        langVals.push({ be: it.be, val: v });
+      }
     }
 
-    // kiem tra logic: tho >= lang >= mang (neu co) — nguoc thi hoi lai
-    if (tho !== null && lang !== null && tho < lang) {
-      if (!confirm('⚠️ Độ đục thô nhỏ hơn sau lắng.\nSố có đúng không?')) return;
+    // kiem tra logic: tho >= lang >= mang — nguoc thi hoi lai
+    for (const lv of langVals) {
+      if (tho < lv.val && !confirm('⚠️ Độ đục thô nhỏ hơn sau lắng (bể ' + lv.be + ').\nSố có đúng không?')) return;
     }
-    if (lang !== null && mang !== null && lang < mang) {
-      if (!confirm('⚠️ Độ đục sau lắng nhỏ hơn ra mạng.\nSố có đúng không?')) return;
+    for (const lv of langVals) {
+      if (lv.val < mang && !confirm('⚠️ Độ đục sau lắng (bể ' + lv.be + ') nhỏ hơn ra mạng.\nSố có đúng không?')) return;
+    }
+
+    // ---- Ảnh (C22) ----
+    if (photoThoInp.files.length === 0) {
+      show('❌ Thiếu ảnh độ đục THÔ (bắt buộc 1 ảnh).', 'err'); return;
+    }
+    if (photoMangInp.files.length === 0) {
+      show('❌ Thiếu ảnh độ đục RA MẠNG (bắt buộc 1 ảnh).', 'err'); return;
+    }
+    // sau lắng: ảnh BẮT BUỘC cho bể có số CAO NHẤT trong các bể ĐÃ NHẬP (so số, không cần ngưỡng)
+    if (langVals.length > 0) {
+      const top = Math.max(...langVals.map(x => x.val));
+      const topBes = langVals.filter(x => x.val === top).map(x => x.be);
+      for (const be of topBes) {
+        const it = langInputs.find(x => x.be === be);
+        if (it && it.photoEl.files.length === 0) {
+          show(`❌ Thiếu ảnh của BỂ ${be} (bể có số cao nhất trong các bể đã nhập: ${fmtNum(top)} NTU).`, 'err');
+          return;
+        }
+      }
+    }
+
+    // nhắc mềm: bể vượt ngưỡng nhúng (thô <= 100 -> 10; thô > 100 -> 15) — KHÔNG chặn
+    const nguong = tho <= THO_NGUONG ? LANG_NGUONG_DUOI : LANG_NGUONG_TREN;
+    const over = langVals.filter(x => x.val > nguong);
+    let warnMsg = '';
+    if (over.length > 0) {
+      warnMsg = '⚠️ LƯU Ý: ' + over.map(x => `bể ${x.be} = ${fmtNum(x.val)} NTU vượt ngưỡng ${nguong} NTU (thô ${fmtNum(tho)}).`).join(' ');
+      show(warnMsg, 'warn');
     }
 
     const by = bySelect.value === '__other__'
@@ -335,26 +436,42 @@
       show('❌ Vui lòng nhập tên người đo (mục "Khác").', 'err'); byOther.focus(); return;
     }
     // 1 dong may-doc + vai dong nguoi-doc cho dep nhom
+    const n = PLANT_BASINS[code] || 0;
+    const langSlot = [];
+    for (let be = 1; be <= n; be++) {
+      const lv = langVals.find(x => x.be === be);
+      langSlot.push(lv ? fmtNum(lv.val) : '');
+    }
     const machine = ['WQ', code, dInp.value, tInp.value,
-                     fmtNum(tho), fmtNum(lang), fmtNum(mang), by].join('|');
+                     fmtNum(tho), langSlot.join(';'), fmtNum(mang), by].join('|');
+    const langHuman = langVals.length ? langVals.map(x => `bể ${x.be}: ${fmtNum(x.val)}`).join(' · ') : '—';
     const human = [
       `📊 Độ đục ${PLANT_NAMES[code]} ${dInp.value.split('-').reverse().join('.')} ${tInp.value}`,
-      `   thô ${tho === null ? '-' : fmtNum(tho)} / lắng ${lang === null ? '-' : fmtNum(lang)} / ra mạng ${fmtNum(mang)} NTU` +
+      `   thô ${fmtNum(tho)} / lắng ${langHuman} / ra mạng ${fmtNum(mang)} NTU` +
       (by ? ` (— ${by})` : '')
     ].join('\n');
 
     btn.disabled = true;
-    show('⏳ Đang nén ảnh và gửi…', 'info');
+    if (status.className !== 'warn') show('⏳ Đang nén ảnh và gửi…', 'info');
     try {
-      const img = await compressImage(photoInp.files[0]);
+      const photos = [];
+      const cTho = await compressImage(photoThoInp.files[0]);
+      photos.push({ vitri: 'tho', base64: cTho.base64, mime: cTho.mime, name: cTho.name });
+      for (const it of langInputs) {
+        if (it.photoEl.files.length > 0) {
+          const c = await compressImage(it.photoEl.files[0]);
+          photos.push({ vitri: 'l' + it.be, base64: c.base64, mime: c.mime, name: c.name });
+        }
+      }
+      const cMang = await compressImage(photoMangInp.files[0]);
+      photos.push({ vitri: 'mang', base64: cMang.base64, mime: cMang.mime, name: cMang.name });
+
       const payload = {
         key: SHARED_KEY,
         chuoi_wq: machine,        // dong may-doc dung dinh dang WQ|...
         caption_hien: human,      // dong nguoi-doc cho nhom Telegram
         nguoi_gui: by,
-        photo_base64: img.base64,
-        photo_mime: img.mime,
-        photo_name: img.name
+        photos: photos
       };
       // Content-Type text/plain de tranh CORS preflight (Apps Script khong tra loi OPTIONS)
       const resp = await fetch(APPS_SCRIPT_URL, {
@@ -366,14 +483,16 @@
       let data = {};
       try { data = JSON.parse(text); } catch (err) { data = { ok: false, error: text }; }
       if (data.ok) {
-        show('✅ Đã gửi thành công.', 'ok');
+        show('✅ Đã gửi thành công.' + (warnMsg ? '\n' + warnMsg : ''), 'ok');
         if (bySelect.value === '__other__') {
           localStorage.setItem('wq_by_other_last', by);
         } else if (bySelect.value) {
           localStorage.setItem('wq_by_' + code, bySelect.value);
         }
-        thoInp.value = ''; langInp.value = ''; mangInp.value = '';
-        photoInp.value = '';
+        thoInp.value = ''; mangInp.value = '';
+        photoThoInp.value = ''; photoMangInp.value = '';
+        langInputs.forEach(it => { it.numEl.value = ''; it.photoEl.value = ''; });
+        historyBox.style.display = 'none'; historySummary.textContent = '';
       } else {
         show('❌ Gửi lỗi: ' + (data.error || JSON.stringify(data)), 'err');
       }
@@ -384,6 +503,60 @@
       btn.disabled = false;
     }
   });
+  // ---- màn hình lịch sử 7 ngày (BƯỚC 3) — chỉ xem, không sửa/xoá ----
+  historyBtn.addEventListener('click', async () => {
+    clearStatus();
+    const code = plantSel.value;
+    if (!code) { show('❌ Vui lòng chọn nhà máy trước.', 'err'); return; }
+    if (!APPS_SCRIPT_URL || !SHARED_KEY) { show('❌ Trang chưa cấu hình.', 'err'); return; }
+    historyBtn.disabled = true;
+    try {
+      const url = APPS_SCRIPT_URL + '?action=history&plant=' + encodeURIComponent(code) +
+                  '&days=7&key=' + encodeURIComponent(SHARED_KEY);
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (!data.ok) { show('❌ Lỗi lịch sử: ' + (data.error || 'Không rõ'), 'err'); return; }
+      renderHistory(code, data.rows || []);
+    } catch (e) {
+      show('❌ Không tải được lịch sử: ' + e.message, 'err');
+    } finally {
+      historyBtn.disabled = false;
+    }
+  });
+
+  function fmtLangGon(langs) {
+    if (!langs || !langs.length) return '—';
+    let top = null;
+    for (const l of langs) {
+      if (top === null || l.val > top.val) top = l;
+    }
+    return top === null ? '—' : `${fmtNum(top.val)} (bể ${top.be})`;
+  }
+
+  function renderHistory(code, rows) {
+    const n = new Date();
+    const p = x => String(x).padStart(2, '0');
+    const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+    const todayCount = rows.filter(r => r.date === todayStr).length;
+    historySummary.textContent = `Hôm nay đã đo ${todayCount} / 3 lần (${PLANT_NAMES[code] || code}).`;
+    if (!rows.length) {
+      historyBox.style.display = 'block';
+      historyBox.innerHTML = '<div class="hint">Chưa có lần đo nào trong 7 ngày gần đây.</div>';
+      return;
+    }
+    const rowsSorted = rows.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    let html = '<table class="history"><thead><tr><th>Ngày</th><th>Giờ</th><th>Thô</th><th>Sau lắng</th><th>Ra mạng</th><th>Người đo</th></tr></thead><tbody>';
+    for (const r of rowsSorted) {
+      html += `<tr><td>${r.date.split('-').reverse().join('.')}</td><td>${r.time || ''}</td>` +
+              `<td>${r.tho === null || r.tho === undefined ? '—' : fmtNum(r.tho)}</td>` +
+              `<td>${fmtLangGon(r.langs || [])}</td>` +
+              `<td>${r.mang === null || r.mang === undefined ? '—' : fmtNum(r.mang)}</td>` +
+              `<td>${r.by || ''}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    historyBox.style.display = 'block';
+    historyBox.innerHTML = html;
+  }
 </script>
 </body>
 </html>
